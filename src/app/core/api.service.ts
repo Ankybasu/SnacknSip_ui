@@ -30,7 +30,8 @@ export interface SalesSummary {
 })
 export class ApiService {
 
-  private base = 'http://127.0.0.1:8000/api';
+  //private base = 'http://127.0.0.1:8000/api';
+  private base= 'snacknsipapi.vercel.app/api';
 
   constructor(private http: HttpClient) {}
 
