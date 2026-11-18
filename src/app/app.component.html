@@ -1,0 +1,293 @@
+<main class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <span class="brand-mark">S</span>
+      <div>
+        <b>Snack 'n' Sip</b>
+        <small>ADMIN PANEL</small>
+      </div>
+    </div>
+
+    <nav>
+      <a class="active">▦ &nbsp; Overview</a>
+      <a href="#new-order">＋ &nbsp; New Order</a>
+      <a href="#orders">▤ &nbsp; Orders</a>
+    </nav>
+
+    <div class="side-note">
+      Restaurant Management
+      <br>
+      <small>Manage your business in one place.</small>
+    </div>
+
+  </aside>
+
+  <!-- Main content -->
+  <section class="content">
+
+    <header>
+      <div>
+        <small class="eyebrow">SNACK 'N' SIP / ADMIN</small>
+        <h1>Dashboard</h1>
+        <p>Here's what's happening at your restaurant.</p>
+      </div>
+
+      <span class="today">{{ today }}</span>
+    </header>
+
+    <!-- Sales summary -->
+    <section class="stats">
+
+      <article>
+        <small>Today's Sales</small>
+        <strong>
+          {{ (summary()?.today_sales || 0) | currency:'INR':'symbol':'1.0-0' }}
+        </strong>
+        <span>{{ summary()?.today_orders || 0 }} orders today</span>
+      </article>
+
+      <article>
+        <small>This Month</small>
+        <strong>
+          {{ (summary()?.monthly_sales || 0) | currency:'INR':'symbol':'1.0-0' }}
+        </strong>
+        <span>{{ summary()?.monthly_orders || 0 }} orders this month</span>
+      </article>
+
+      <article>
+        <small>Overall Sales</small>
+        <strong>
+          {{ (summary()?.overall_sales || 0) | currency:'INR':'symbol':'1.0-0' }}
+        </strong>
+        <span>{{ summary()?.overall_orders || 0 }} total orders</span>
+      </article>
+
+    </section>
+
+    <!-- New order -->
+    <section class="panel" id="new-order">
+
+      <div class="panel-head">
+        <div>
+          <h2>Create customer order</h2>
+          <p>Add menu items and generate the bill.</p>
+        </div>
+
+        <span class="tag">NEW BILL</span>
+      </div>
+
+      <div class="order-grid">
+
+        <!-- Menu selection -->
+        <div>
+
+          <label>Customer name</label>
+          <input [(ngModel)]="customerName" placeholder="Enter customer name">
+
+          <label>Customer phone (with country code)</label>
+          <input [(ngModel)]="customerPhone" placeholder="e.g. 919876543210">
+
+          <label>Search menu</label>
+          <input [ngModel]="search()" (ngModelChange)="search.set($event)" placeholder="Search items or category...">
+
+          <div class="menu-list">
+
+            @for (item of filteredMenu(); track item.id) {
+
+            <div class="menu-row">
+
+              <div>
+                <b>{{ item.name }}</b>
+                <small>{{ item.category }}</small>
+              </div>
+
+              <strong>
+                {{ item.price | currency:'INR':'symbol':'1.0-0' }}
+              </strong>
+
+              <button (click)="add(item)">
+                Add
+              </button>
+
+            </div>
+
+            } @empty {
+
+            <p class="muted">
+              No matching menu items found.
+            </p>
+
+            }
+
+          </div>
+
+        </div>
+
+        <!-- Current bill -->
+        <div class="bill">
+
+          <h3>Current bill</h3>
+
+          @if (cart().length === 0) {
+
+          <p class="muted">
+            Your order is empty. Add items from the menu.
+          </p>
+
+          }
+
+          @for (line of cart(); track line.item.id) {
+
+          <div class="bill-row">
+
+            <div class="bill-name">
+              {{ line.item.name }}
+
+              <small>
+                {{ line.item.price | currency:'INR':'symbol':'1.0-0' }} each
+              </small>
+            </div>
+
+            <div class="qty">
+              <button (click)="change(line, -1)">−</button>
+
+              {{ line.quantity }}
+
+              <button (click)="change(line, 1)">+</button>
+            </div>
+
+            <b>
+              {{ (line.item.price * line.quantity) | currency:'INR':'symbol':'1.0-0' }}
+            </b>
+
+          </div>
+
+          }
+
+          <div class="total">
+            <span>Grand total</span>
+
+            <strong>
+              {{ total() | currency:'INR':'symbol':'1.0-0' }}
+            </strong>
+          </div>
+
+          <button class="primary full"
+            [disabled]="!cart().length || !customerName.trim() || !customerPhone.trim() || saving()"
+            (click)="placeOrder()">
+            {{ saving() ? 'Saving...' : 'Generate bill & save order' }}
+          </button>
+
+          @if (lastBill()) {
+
+          <div class="success">
+            Order saved successfully.
+            Bill #{{ lastBill().order.id }}
+          </div>
+
+          <button class="whatsapp full" (click)="shareWhatsApp()">
+            Share bill on WhatsApp ↗
+          </button>
+
+          <button class="secondary full" (click)="printBill()">
+            Print bill
+          </button>
+
+          }
+
+          @if (error()) {
+
+          <p class="error">
+            {{ error() }}
+          </p>
+
+          }
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- Recent orders -->
+
+    <section class="panel" id="orders">
+
+      <div class="panel-head">
+        <div>
+          <h2>Recent orders</h2>
+          <p>Latest customer transactions.</p>
+        </div>
+
+        <button class="secondary" (click)="load()">
+          Refresh
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+
+          <thead>
+            <tr>
+              <th>Order ID</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            @for (order of orders(); track order.id) {
+
+            <tr>
+              <td>#{{ order.id.slice(0, 8) }}</td>
+
+              <td>{{ order.customer_name }}</td>
+
+              <td>{{ order.customer_phone }}</td>
+
+              <td>
+                <b>
+                  {{ order.total_amount | currency:'INR':'symbol':'1.0-0' }}
+                </b>
+              </td>
+
+              <td>{{ order.created_at | date:'medium' }}</td>
+
+              <td>
+                <button class="delete-btn" [disabled]="deletingOrderId() === order.id" (click)="deleteOrder(order.id)">
+                  {{ deletingOrderId() === order.id ? 'Deleting...' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+
+            } @empty {
+
+            <tr>
+              <td colspan="6" class="muted">
+                No orders yet.
+              </td>
+            </tr>
+
+            }
+
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+
+    <footer>
+      Snack 'n' Sip · Admin Management
+    </footer>
+
+  </section>
+
+</main>
